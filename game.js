@@ -14,7 +14,7 @@ const BR=[
  {n:'Royal Sweets & Desserts',w:0x5f0f40,t:0xffd700,f:[0xfff3d6,0xf1d58a],m:512,c:0xffd700,pn:'Sweets Kitchen',gn:'SWEETS KITCHEN',cn:['COUNTER','serve here'],dn:['FALOODA BAR','cold'],dp:'Falooda Bar',ej:'\u{1F370}',wl:0xe58ab0,fl:[0xfff0f3,0xf6d6a8],tr:0xd4a017,ac:0xffd700}];
 const NB=BR.length;
 BR.forEach((b,i)=>{b.m=Math.pow(2.5,i);}); // every hotel costs ~2.5x the previous one, and pays ~2.5x too (PRICE/TIP/DB are multiplied by M)
-// Floor plans (union of rects), station order, table grid, doors and management corner. 5 plans, reused across the 10 hotels (each hotel has its own look, food and decor).
+// Floor plans (union of rects), station order, table grid, doors and management corner. 9 plans so far (hotel 10 still reuses plan 0 until plan 9 is added) (each hotel has its own look, food and decor).
 const LAY=[
  {rects:[[-20,-12,20,12]],nz:-12,st:{counter:-15,drink:-8,grill:-1.5,pack:5.5,win:13},
   tabs:[[-6,2],[2,2],[-6,-3.5],[2,-3.5],[-6,7.5],[2,7.5]],ent:{x:-15,z:12},ex:{x:7,z:12},cash:[-11.8,-4.8],trash:[-12.2,-.5],
@@ -38,7 +38,15 @@ const LAY=[
  // 6: stepped plan: kitchen block top-left (drive-thru on the far left, counter in the middle), dining block bottom-right, offices under the west stations
  {rects:[[-28,-12,12,4],[-10,4,30,18]],nz:-12,st:{win:-24,pack:-16.5,grill:-9,counter:-1,drink:7},
   tabs:[[6,9],[14,9],[22,9],[6,14],[14,14],[22,14]],ent:{x:-1,z:18},ex:{x:11,z:18},cash:[2.2,-4.8],trash:[-7.5,-4],
-  mz:{x:-11.4,z:1.5,dx:2.4,dz:0,rx:0,rz:-2.4},nd:{x:30,z:10,a:'E'},arrN:{x:28.4,z:10},pd:{x:-28,z:0,a:'W'},arrP:{x:-26.4,z:0},start:[-12,-4]}];
+  mz:{x:-11.4,z:1.5,dx:2.4,dz:0,rx:0,rz:-2.4},nd:{x:30,z:10,a:'E'},arrN:{x:28.4,z:10},pd:{x:-28,z:0,a:'W'},arrP:{x:-26.4,z:0},start:[-12,-4]},
+ // 7: hockey-stick plan: long kitchen strip on top (drive-thru far left, counter at the right end), dining wing hangs down on the right (queue runs down its left edge), offices + machine pads on the strip floor
+ {rects:[[-16,-12,30,2],[10,2,30,20]],nz:-12,st:{win:-13,pack:-5.5,grill:2,counter:14,drink:22},
+  tabs:[[19.5,5],[26.5,5],[19.5,10.5],[26.5,10.5],[19.5,16],[26.5,16]],ent:{x:14,z:20},ex:{x:23,z:20},cash:[17.2,-4.8],trash:[23.2,.2],
+  mz:{x:-10.8,z:-1.4,dx:2.4,dz:0,rx:0,rz:-2.4},nd:{x:30,z:-6,a:'E'},arrN:{x:28.4,z:-6},pd:{x:-16,z:-5.5,a:'W'},arrP:{x:-14.4,z:-5.5},start:[17,-1.5]},
+ // 8: T plan: very wide kitchen strip on top (pack/grill/drink on the west half, drive-thru on the east end), deep dining stem down the middle with the counter queue in its centre, offices on the east side, machine pads on the west side
+ {rects:[[-26,-12,26,2],[-6,2,14,22]],nz:-12,st:{pack:-21.5,grill:-14,drink:-6.5,counter:3.5,win:18},
+  tabs:[[-1.5,6.5],[9,6.5],[-1.5,12.5],[9,12.5],[-1.5,18],[9,18]],ent:{x:3.5,z:22},ex:{x:10.5,z:22},cash:[6.7,-4.8],trash:[12,3.4],
+  mz:{x:-20.4,z:-1.4,dx:2.4,dz:0,rx:0,rz:-2.4},nd:{x:26,z:-5,a:'E'},arrN:{x:24.4,z:-5},pd:{x:-26,z:-6,a:'W'},arrP:{x:-24.4,z:-6},start:[6.5,-1.8]}];
 const KEY='restaurantEmpireSave_v4',BAK=KEY+'_bak',CKEY='restaurantEmpireCash_v4',OLDKEYS=['restaurantEmpireSave_v3','restaurantEmpireSave_v2'];
 const num=v=>Number.isFinite(+v)&&+v>0?+v:0;
 const rj=k=>{try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}};
@@ -57,7 +65,7 @@ delete SV.ps;delete SV.pc;delete SV.pu; // player upgrades are per-hotel now (T.
 SV.mx=Math.min(NB-1,Math.floor(num(SV.mx)));SV.ws=Math.min(3,Math.floor(num(SV.ws)));SV.wc=Math.min(3,Math.floor(num(SV.wc)));{const mu=SV.mu||{};SV.mu={c:Math.min(2,Math.floor(num(mu.c))),g:Math.min(3,Math.floor(num(mu.g))),d:Math.min(8,Math.floor(num(mu.d))),p:Math.min(3,Math.floor(num(mu.p))),w:Math.min(2,Math.floor(num(mu.w)))};} // machine upgrade levels (grill / drinks / packing)
 // player level / XP / gems are global (shared by all hotels). Old saves without them start at Level 1, 0 XP, 0 gems.
 SV.pl=Math.max(1,Math.floor(num(SV.pl)));SV.px=num(SV.px);SV.gems=Math.floor(num(SV.gems));const OFF_AWAY=SV.act?Math.max(0,Date.now()-num(SV.act))/1000:0;SV.dl=String(SV.dl||'');SV.snd=SV.snd===0?0:1;SV.ro=Math.min(3,Math.floor(num(SV.ro)));{const m=SV.ms,ok=m&&Array.isArray(m.a)&&Array.isArray(m.p)&&Array.isArray(m.c)&&m.a.length===m.p.length&&m.a.length===m.c.length&&m.a.every(k=>['build','serve','clean','car','time'].includes(k));SV.ms=ok?{d:String(m.d||''),a:m.a,p:m.p.map(num),c:m.c.map(x=>x?1:0)}:{d:'',a:[],p:[],c:[]};} // daily missions, daily reward day, sound, last-active time (offline earnings)
-const BI=Math.min(NB-1,Math.max(0,Math.floor(num(SV.br)))),B0=BR[BI],M=B0.m,T=SV.b[BI],LI=[0,1,2,3,4,5,6,3,4,0][BI],L=LAY[LI];SV.br=BI;if(SV.st){delete SV.st;} // new player: NO starter cash (steps 1-3 are free)
+const BI=Math.min(NB-1,Math.max(0,Math.floor(num(SV.br)))),B0=BR[BI],M=B0.m,T=SV.b[BI],LI=[0,1,2,3,4,5,6,7,8,0][BI],L=LAY[LI];SV.br=BI;if(SV.st){delete SV.st;} // new player: NO starter cash (steps 1-3 are free)
 /* ===== DINING ZONE 2 (kind 0, 16x12) + BOOTH ZONE (kind 1, 16x14): two extra rooms bolted onto the hotel floor plan. Each hotel gets its own site (hotels that share a floor plan pick different sites), always >=4 away from every door / entrance / exit. Original floor = L.r0 (main-floor pads and decor keep using it). ===== */
 const ZA=[null,null];
 {L.r0=L.r0||L.rects.slice();
@@ -723,7 +731,7 @@ function plant(x,z,v){const g=new THREE.Group();g.position.set(x,0,z);scene.add(
 {const bad=[].concat(Object.values(PADS.st),PADS.tab,PADS.mg,[PADS.door]).filter(Boolean).map(p=>[p.x,p.z]).concat([L.cash,L.trash],L.arrN?[[L.arrN.x,L.arrN.z]]:[]);
  [[L.ent.x-2.5,L.ent.z-1.2],[L.ent.x+2.5,L.ent.z-1.2],[L.ex.x-2,L.ex.z-1.2],[L.ex.x+2,L.ex.z-1.2]].forEach(([x,z],n)=>{if(inF(x,z)&&walk(x,z)&&bad.every(([a,b])=>dist(x,z,a,b)>2.6)&&L.tabs.every(([a,b])=>dist(x,z,a,b)>3.4))plant(x,z,n%3);});}
 /* ===== UPGRADE OFFICE + HR OFFICE: two real rooms (4 walls, black door with glass strip, desk, clerk, shelf, notice board). Standing on the round pad opens a bottom-sheet panel. Opens at step 12 (HR Office). ===== */
-const RMX=[[[6,-6.4],[11.4,-6.4]],[[5.5,-6],[11,-6]],[[-19.4,-3.4],[-13.8,-3.4]],[[12,-3.5],[17.4,-3.5]],[[-13,-6.2],[-13,2]],[[8,-6.4],[13.4,-6.4]],[[-23,-6.4],[-17.6,-6.4]]][LI],ROOMS=[],HRP={x:0,z:0,wt:0};
+const RMX=[[[6,-6.4],[11.4,-6.4]],[[5.5,-6],[11,-6]],[[-19.4,-3.4],[-13.8,-3.4]],[[12,-3.5],[17.4,-3.5]],[[-13,-6.2],[-13,2]],[[8,-6.4],[13.4,-6.4]],[[-23,-6.4],[-17.6,-6.4]],[[0,-6.4],[5.6,-6.4]],[[10,-6.4],[15.6,-6.4]]][LI],ROOMS=[],HRP={x:0,z:0,wt:0};
 function rtxt(txt,x,z){const F='800 92px "Baloo 2",Trebuchet MS,sans-serif',c=document.createElement('canvas');let g=c.getContext('2d');g.font=F;const tw=g.measureText(txt).width;c.width=Math.ceil(tw+130);c.height=160;g=c.getContext('2d');g.font=F;g.textBaseline='middle';g.fillStyle='rgba(112,28,28,.92)';g.fillText(txt,8,84);
  const ax=tw+70;g.beginPath();g.moveTo(ax,6);g.lineTo(ax+44,60);g.lineTo(ax+17,60);g.lineTo(ax+17,152);g.lineTo(ax-17,152);g.lineTo(ax-17,60);g.lineTo(ax-44,60);g.closePath();g.fill();
  const gp=new THREE.Group(),m=new THREE.Mesh(new THREE.PlaneGeometry(c.width*1.1/160,1.1),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthWrite:false}));m.rotation.x=-Math.PI/2;gp.add(m);gp.position.set(x,.06,z);gp.rotation.y=Math.PI/4;scene.add(gp);}
@@ -1392,6 +1400,15 @@ function update(dt){
 function loop(){requestAnimationFrame(loop);if(UP.open||CM.open||GM.open)clock.getDelta();else update(Math.min(clock.getDelta(),.05));renderer.render(scene,cam);badgeTick();}
 
 /* ================= boot ================= */
+/* boot layout check (warn only, fixes nothing): every chain pad, both office pads and the NEXT HOTEL door must be on walkable floor. inF = centre is on a floor cell, walk = the 4 points .45 around it are floor / door pocket. */
+try{const W=(what,x,z,why)=>{bad++;console.warn('[layout-check] Hotel '+(BI+1)+' ('+B0.n+'), layout '+LI+': '+what+' at ('+(+x).toFixed(2)+', '+(+z).toFixed(2)+') '+why);};let bad=0;
+ for(let i=0;i<NS;i++){const p=chainPos(i),nm='chain pad step '+i+' "'+stepName(i)+'"';
+  if(!p||!Number.isFinite(p.x)||!Number.isFinite(p.z)){bad++;console.warn('[layout-check] Hotel '+(BI+1)+' ('+B0.n+'), layout '+LI+': '+nm+' has NO position (PADS returned nothing)');continue;}
+  const a=inF(p.x,p.z),w=walk(p.x,p.z);if(!a)W(nm,p.x,p.z,'is OUTSIDE the floor (inF false)');else if(!w)W(nm,p.x,p.z,'is on the floor but too close to the edge / wall (walk false)');}
+ ROOMS.forEach((r,i)=>{const nm=(i?'HR':'UPGRADE')+' office pad',a=inF(r.px,r.pz),w=walk(r.px,r.pz);
+  if(!a)W(nm,r.px,r.pz,'is OUTSIDE the floor (inF false)');else if(!w)W(nm,r.px,r.pz,'is on the floor but too close to the edge / wall (walk false)');});
+ if(doors.next){const d=doors.next.d;if(!walk(d.x,d.z))W('NEXT HOTEL door',d.x,d.z,'is not walkable (walk false: no floor right behind it, or the door pocket is off the wall)');}
+ if(!bad)console.log('[layout-check] Hotel '+(BI+1)+' ('+B0.n+'), layout '+LI+': all chain pads, office pads and next-hotel door are inside the floor');}catch(e){console.warn('[layout-check] check crashed',e);}
 ecoReport();ensure(false);refreshPads();refreshPile();refreshDoors();syncCarry();hud();lvHud();showCash(9);save();
 camT.set(player.position.x,0,player.position.z);cam.position.copy(camT).add(camOff);cam.lookAt(camT);cam.updateMatrixWorld();
 if(step()>0)$('hint').style.opacity=0;
