@@ -672,7 +672,7 @@ function makeVehicle(sc){const g=new THREE.Group(),kind=sc?'scooter':'car';
  aoBlob(g,0,0,sc?2.2:3.8,sc?1.1:2.1,.9);return g;}
 const winShow=()=>{const w=S.win.stock,n=Math.min(8,w.k),s=Math.min(n,w.ks);stack(S.win.sg,Array(n-s).fill('k').concat(Array(s).fill('K')));}; // window shelf: plain bags + bags with a side item
 function spawnCar(){const sc=Math.random()<.4,g=makeVehicle(sc),z=L.nz-3.8;g.position.set(L.st.win+34,0,z);scene.add(g);
- const l=label(.8);l.position.y=sc?2.6:2.8;g.add(l);const sd=!!S.side&&Math.random()<.3;l.draw(sc?'Scooter':'Order',sd?'bag+side':'1 bag');const c={g,l,out:false,sc,sd}; // 30% of cars also want a side item (only once the Side Items counter exists)cars.push(c);dtq.push(c);}
+ const l=label(.8);l.position.y=sc?2.6:2.8;g.add(l);const sd=!!S.side&&Math.random()<.3;l.draw(sc?'Scooter':'Order',sd?'bag+side':'1 bag');const c={g,l,out:false,sc,sd};cars.push(c);dtq.push(c);} // 30% of cars also want a side item (only once the Side Items counter exists)
 const winAt=()=>S.win&&(dist(player.position.x,player.position.z,S.win.px,S.win.pz)<2.6||workers.some(w=>w.role==='D'&&dist(w.g.position.x,w.g.position.z,S.win.px,S.win.pz)<2.6));
 /* the finished bag (this hotel's own package look) flies from the window into the car / scooter, then the vehicle drives off */
 function flyBag(a,b,dur,end){const m=makeItem('k');m.scale.setScalar(1.5);m.visible=false;addFx(m,dur,(k,o)=>{o.visible=true;o.position.set(a.x+(b.x-a.x)*k,a.y+(b.y-a.y)*k+Math.sin(k*Math.PI)*2.2,a.z+(b.z-a.z)*k);o.rotation.y=k*6.283;o.scale.setScalar(1.5-.7*k);},end);}
